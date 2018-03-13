@@ -1,0 +1,135 @@
+from os.path import basename
+from glob import glob
+
+GENOME = 'genomes/hg19'
+EXPERIMENT = 'output-v2/hg19_PE'
+DATA = 'ENCODE'
+
+PROJECTS = [basename(folder) for folder in glob(EXPERIMENT+'/*')]
+
+
+rule all:
+	input:
+		promoter_footprints = expand(EXPERIMENT+'/{project}/{project}-promoter_footprints.json',project=PROJECTS),
+		enhancer_footprints = expand(EXPERIMENT+'/{project}/{project}-enhancer_footprints.json',project=PROJECTS),
+		bedgraph = expand(EXPERIMENT+'/{project}/{project}-peaks.bg',project=PROJECTS)
+
+rule perform_bowtie:
+	input:
+		P1 = DATA+'/{project}/P1/{project}.fastq.gz',
+		P2 = DATA+'/{project}/P2/{project}.fastq.gz'
+	output:
+		EXPERIMENT+'/{project}/{project}-bowtie2.sam'
+	shell:
+		"cat {input.P1} >> "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P1.cat.fastq.gz;"
+		"cat {input.P2} >> "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P2.cat.fastq.gz;"
+		"module load bowtie/2-2.2.9;"
+		"bowtie2 -x "+GENOME+"/Bowtie2Index/genome -p 56 -q -1 "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P1.cat.fastq.gz -2 "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P2.cat.fastq.gz -S {output};"
+		"rm "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P1.cat.fastq.gz;"
+		"rm "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-P2.cat.fastq.gz;"
+
+rule perform_samtools_view:
+	input:
+		EXPERIMENT+'/{project}/{project}-bowtie2.sam'
+	output:
+		EXPERIMENT+'/{project}/{project}-view.bam'
+	shell:
+		"module load samtools;"
+		"samtools view -b -u {input} > {output};"
+		"rm {input};"
+
+rule perform_samtools_sort:
+	input:
+		EXPERIMENT+'/{project}/{project}-view.bam'
+	output:
+		bamfile = EXPERIMENT+'/{project}/{project}-picard.bam',
+		index = EXPERIMENT+'/{project}/{project}-picard.bam.bai'
+	shell:
+		"module load samtools;"
+		"samtools sort -@ 12 {input} -o {output.bamfile};"
+		"rm {input};"
+		"samtools index {output.bamfile};"
+
+rule perform_makeTagDirectory:
+	input:
+		EXPERIMENT+'/{project}/{project}-picard.bam'
+	output:
+		directory = EXPERIMENT+'/{project}/{project}-tagDirectory',
+		peaks = EXPERIMENT+'/{project}/{project}-peaks.bed'
+	shell:
+		"module load homer;"
+		"makeTagDirectory "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-tagDirectory/ {input};"
+		"findPeaks "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-tagDirectory/ -region -size 50 -minDist 50 -o auto -tbp 0;"
+		"pos2bed.pl "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-tagDirectory/peaks.txt > {output.peaks};"
+
+rule perform_grepcutPeaks:
+	input:
+		EXPERIMENT+'/{project}/{project}-tagDirectory'
+	output:
+		EXPERIMENT+'/{project}/{project}-peaks.bg'
+	shell:
+		"grep -v '#' {input}/peaks.txt > {input}/peaks2.txt;"
+		"cut -f2-4,8 {input}/peaks2.txt > {output};"
+		"rm {input}/peaks2.txt;"		
+
+rule perform_bedtoolsMergePeaks:
+	input:
+		EXPERIMENT+'/{project}/{project}-peaks.bed'
+	output:
+		EXPERIMENT+'/{project}/{project}-peaks.merged.bed'
+	shell:
+		"module load bedtools;"
+		"bedtools sort -i {input} > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-peaks.sorted.bed;"
+		"bedtools merge -i "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-peaks.sorted.bed > {output};"
+		"rm {input};"
+		"rm "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-peaks.sorted.bed;"
+
+rule write_experiment_matrix:
+	input:
+	output:
+		EXPERIMENT+'/{project}/experiment_matrix.bed'
+	run:
+		openfile = open(EXPERIMENT+'/'+wildcards.project+'/experiment_matrix.bed','w')
+		string_to_write = ''
+		string_to_write += 'name\ttype\tfile\tdata\tgroup\n'
+		string_to_write += 'HS\tregions\t./'+wildcards.project+'-peaks.merged.bed\tHS\tFP1\n'
+		string_to_write += 'DNASE\treads\t./'+wildcards.project+'-picard.bam\tDNASE\tFP1'
+		openfile.write(string_to_write)
+                print(string_to_write)
+		openfile.close()
+
+rule perform_footprinting:
+	input:
+		directory = EXPERIMENT+'/{project}/{project}-tagDirectory',
+		bamfile = EXPERIMENT+'/{project}/{project}-picard.bam',
+		index = EXPERIMENT+'/{project}/{project}-picard.bam.bai',
+		peaks = EXPERIMENT+'/{project}/{project}-peaks.merged.bed',
+		matrix = EXPERIMENT+'/{project}/experiment_matrix.bed'
+	output:
+		EXPERIMENT+'/{project}/{project}-footprints/'
+	shell:
+		"cd "+EXPERIMENT+"/{wildcards.project};"
+		"module load rgt;"
+		"if [ ! -d {output} ]; then mkdir {output}; fi;"
+		"rgt-hint --output-location {output} --estimate-bias-correction --organism hg19 experiment_matrix.bed;"
+		"rm -r {input.directory};"
+		"rm {input.peaks};"
+		"rm {input.matrix};"
+		"rm {input.bamfile};"
+
+rule perform_bedmap:
+	input:
+		EXPERIMENT+'/{project}/{project}-footprints/'
+	output:
+		promoter_footprints = EXPERIMENT+'/{project}/{project}-promoter_footprints.json',
+		enhancer_footprints = EXPERIMENT+'/{project}/{project}-enhancer_footprints.json'
+	shell:
+		"module load bedops;"
+		"cp {input}*.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed;"
+		"sort -k 1,1 -k2,2n "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed;"
+		"bedmap --ec --multidelim '&' --skip-unmapped --sweep-all --bp-ovr 3 --echo --echo-map "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed "+GENOME+"/*fimo_results.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-bedmap.bed;"
+		"python /data/pranzatellitj/tools/associate_footprints_snakemake_hg19PE.py -e {wildcards.project} -g "+GENOME+";"
+		"bedmap --ec --delim '@' --multidelim '%%' --skip-unmapped --sweep-all --echo --echo-map "+GENOME+"/tss.tssified.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed;"
+		"bedmap --ec --delim '@' --multidelim '%%' --skip-unmapped --sweep-all --echo --echo-map "+GENOME+"/sorted_compcor_* "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed;"
+		"python /data/pranzatellitj/tools/package_everything_as_JSON_snakemake.py -e "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed -p "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed -t "+GENOME+"/tss.tssified.bed -o "+EXPERIMENT+"/ -x {wildcards.project};"
+		"rm "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-bedmap.bed;"
