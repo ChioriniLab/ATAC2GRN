@@ -28,7 +28,7 @@ Unpack the file with
 tar -xvzf ATAC2GRN_VDI.tar.gz
 ```
 
-Inside the folder will be a .vdi file, and this can be loaded into VirtualBox directly as an Ubuntu 16.04 system with all of the dependencies for this pipelines installed. We'd recommend allocating sizable hard drive space (we used 400 GB) to accomodate .fastq.gz input data files as well as .bam intermediate files, as well as enough RAM (>= 16 GB) so that running the pipeline doesn't take multiple days.
+Inside the folder will be a .vdi file, and this can be loaded into VirtualBox directly as an Ubuntu 16.04 system with all of the dependencies for this pipelines installed. We'd recommend allocating sizable hard drive space. We used 400 GB, though as a rule of thumb you should have at least 250% as much space as it takes to accomodate your raw data. Additional make sure you have enough RAM (>= 16 GB) so that running the pipeline doesn't take multiple days. A CPU that can run at least four threads will work with the code.
 
 ## The Folders
 
