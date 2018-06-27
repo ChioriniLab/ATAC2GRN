@@ -14,7 +14,7 @@ Attached is the file
 ATAC2GRN_Singularity
 ```
 
-This is a file that specifies commands in an order to a program that will build a Linux system (Ubuntu 16.04, specifically). If you're comfortable using Singularity, create a container with this file on a system using the Ubuntu 16.04 OS (approximate size ~35GB). If you'd like to learn how to build a Singularity container using this file, a just-add-water tutorial can be found [here](https://singularity.lbl.gov/quickstart).
+This is a file that specifies commands in an order to a program that will build a Linux system (Ubuntu 16.04, specifically). If you're comfortable using Singularity, create a container with this file on a system using the Ubuntu 16.04 OS (approximate size ~35GB). If you'd like to learn how to build a Singularity container using this file, a quick tutorial can be found [here](https://singularity.lbl.gov/quickstart).
 
 We'd like to thank the NIH HPC for the inspiration they provided with these Singularity files.
 
