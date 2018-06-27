@@ -36,12 +36,16 @@ There are three folders in this project: the code used to generate figures; the 
 
 ### Code to Generate Figures
 
-This code holds unit-tested code for figure generation. Most likely the folder of least utility.
+This code holds unit-tested code for figure generation in the original paper.
 
 ### Pipes
 
 This folder contains all the pipeline code used in the paper, including the bash code used to test all 4560 pipelines as well as the Snakemake alternative for final pipelines. Interested users are provided with both, to use depending on their personal preference.
 
+To make best use of these tools, please open the Pipes folder and follow the README.md instructions on how to use these finalized pipelines.
+
 ### ROCtool
 
 This folder contains the code necessary to test a set of footprints against known ChIP-seq data. This ChIP-seq data is specific to GM12878; a new directory of ChIP-seq data needs to be made if a user produces footprint data from a different pipeline.
+
+Information on how to use this tool is provided in the ROCtool folder. The tool uses the .bed files of all footprints produced by a finalized pipeline.
