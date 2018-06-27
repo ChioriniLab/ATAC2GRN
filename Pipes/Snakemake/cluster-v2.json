@@ -1,0 +1,65 @@
+    {
+         "__default__" :
+         {
+             "mem"       : "240g",
+             "partition" : "norm",
+             "time"      : "4:00:00",
+             "cpus"      : "56",
+         },
+        "perform_bowtie" :
+         {
+             "mem"       : "240g",
+             "partition" : "norm",
+             "time"      : "12:00:00",
+             "cpus"      : "56",
+         },
+        "perform_samtools_view" :
+         {
+             "mem"       : "30g",
+             "partition" : "quick",
+             "time"      : "2:00:00",
+             "cpus"      : "4",
+         },
+        "perform_samtools_sort" :
+         {
+             "mem"       : "60g",
+             "partition" : "norm",
+             "time"      : "8:00:00",
+             "cpus"      : "12",
+         },
+        "perform_makeTagDirectory" :
+         {
+             "mem"       : "60g",
+             "partition" : "norm",
+             "time"      : "8:00:00",
+             "cpus"      : "12",
+         },
+        "perform_grepcutPeaks" :
+         {
+             "mem"       : "10g",
+             "partition" : "quick",
+             "time"      : "0:30:00",
+             "cpus"      : "4",
+         },
+        "perform_bedtoolsMergePeaks" :
+         {
+             "mem"       : "40g",
+             "partition" : "quick",
+             "time"      : "4:00:00",
+             "cpus"      : "4",
+         },
+        "perform_footprinting" :
+         {
+             "mem"       : "240g",
+             "partition" : "norm",
+             "time"      : "16:00:00",
+             "cpus"      : "56",
+         },
+        "perform_bedmap" :
+         {
+             "mem"       : "80g",
+             "partition" : "norm",
+             "time"      : "8:00:00",
+             "cpus"      : "4",
+         }
+    }
