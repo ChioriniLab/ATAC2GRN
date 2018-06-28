@@ -2,17 +2,15 @@ from os.path import basename
 from glob import glob
 
 GENOME = 'genomes/hg19'
-EXPERIMENT = 'output-v2/hg19_PE'
-DATA = 'ENCODE'
+EXPERIMENT = 'your_folder_here'
+DATA = 'data'
 
 PROJECTS = [basename(folder) for folder in glob(EXPERIMENT+'/*')]
 
 
 rule all:
 	input:
-		promoter_footprints = expand(EXPERIMENT+'/{project}/{project}-promoter_footprints.json',project=PROJECTS),
-		enhancer_footprints = expand(EXPERIMENT+'/{project}/{project}-enhancer_footprints.json',project=PROJECTS),
-		bedgraph = expand(EXPERIMENT+'/{project}/{project}-peaks.bg',project=PROJECTS)
+		EXPERIMENT+'/{project}/{project}-footprints/'
 
 rule perform_bowtie:
 	input:
@@ -116,20 +114,3 @@ rule perform_footprinting:
 		"rm {input.peaks};"
 		"rm {input.matrix};"
 		"rm {input.bamfile};"
-
-rule perform_bedmap:
-	input:
-		EXPERIMENT+'/{project}/{project}-footprints/'
-	output:
-		promoter_footprints = EXPERIMENT+'/{project}/{project}-promoter_footprints.json',
-		enhancer_footprints = EXPERIMENT+'/{project}/{project}-enhancer_footprints.json'
-	shell:
-		"module load bedops;"
-		"cp {input}*.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed;"
-		"sort -k 1,1 -k2,2n "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed;"
-		"bedmap --ec --multidelim '&' --skip-unmapped --sweep-all --bp-ovr 3 --echo --echo-map "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed "+GENOME+"/*fimo_results.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-bedmap.bed;"
-		"python /data/pranzatellitj/tools/associate_footprints_snakemake_hg19PE.py -e {wildcards.project} -g "+GENOME+";"
-		"bedmap --ec --delim '@' --multidelim '%%' --skip-unmapped --sweep-all --echo --echo-map "+GENOME+"/tss.tssified.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed;"
-		"bedmap --ec --delim '@' --multidelim '%%' --skip-unmapped --sweep-all --echo --echo-map "+GENOME+"/sorted_compcor_* "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed > "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed;"
-		"python /data/pranzatellitj/tools/package_everything_as_JSON_snakemake.py -e "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed -p "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed -t "+GENOME+"/tss.tssified.bed -o "+EXPERIMENT+"/ -x {wildcards.project};"
-		"rm "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_e.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-association_matrix_p.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-associated_footprints.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-sorted_Wellington.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-Wellington.bed "+EXPERIMENT+"/{wildcards.project}/{wildcards.project}-bedmap.bed;"
